@@ -1,0 +1,33 @@
+User-agent: *
+Allow: /
+
+# Нейросети, ИИ-поиск и LLM-агенты: индексация и цитирование разрешены
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+User-agent: YouBot
+Allow: /
+User-agent: Diffbot
+Allow: /
+User-agent: Bytespider
+Allow: /
+User-agent: Amazonbot
+Allow: /
+
+Sitemap: https://xn--80avfdgpf.xn--p1ai/sitemap.xml
+Host: https://xn--80avfdgpf.xn--p1ai
