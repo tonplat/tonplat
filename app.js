@@ -541,6 +541,7 @@
     const clearBtn = document.getElementById("drawer-clear-btn");
     const submitBtn = document.getElementById("drawer-submit-btn");
     const pdfBtn = document.getElementById("drawer-pdf-btn");
+    const docxBtn = document.getElementById("drawer-docx-btn");
     const subEl = document.getElementById("drawer-subtitle");
     const formBox = document.getElementById("drawer-form-box");
     const sentBox = document.getElementById("drawer-sent-box");
@@ -574,6 +575,7 @@
     const ids = Object.keys(state.cart).map(Number);
     if (clearBtn) clearBtn.hidden = ids.length === 0;
     if (pdfBtn) pdfBtn.hidden = ids.length === 0;
+    if (docxBtn) docxBtn.hidden = ids.length === 0;
 
     if (ids.length === 0) {
       const miniPresets = DATA.presets
@@ -665,36 +667,56 @@
     renderPrintEstimate();
   }
 
+  /* Номер и дата сметы: едины для сообщения, печатной формы и DOCX. */
+  function buildEstimateMeta() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return {
+      number: "СМ-" + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()),
+      dateRu: p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear(),
+    };
+  }
+
+  /* В заявку уходит формальная смета: номер, дата, реквизиты, построчный состав, итог. */
   function buildOrderMessage(name, phone, extraNotes) {
+    const meta = buildEstimateMeta();
     const lines = [
-      "Заказ / расчёт стола — ТонПлат (Самара)",
-      "----------------------------------------",
-      `Имя: ${name}`,
-      `Телефон: ${phone}`,
-      `Повод: ${state.occasion}`,
-      `Гостей: ${state.guests} чел.`,
+      `СМЕТА ${meta.number} от ${meta.dateRu} — ТонПлат (Самара)`,
+      `Исполнитель: ${CFG.legalShort}, ИНН ${CFG.inn}, КПП ${CFG.kpp}, ОГРН ${CFG.ogrn}`,
+      `${CFG.address} · тел. ${CFG.phoneDisplay} · ${CFG.siteUrl}`,
+      `Заказчик: ${name}, ${phone}`,
+      `Повод: ${state.occasion}; гостей: ${state.guests} чел.`,
     ];
 
     const flags = [];
     if (state.halal) flags.push("100% Халяль (с фото упаковок)");
     if (state.b2b) flags.push("Счёт и закрывающие документы для ООО/ИП");
     if (flags.length > 0) lines.push(`Условия: ${flags.join("; ")}`);
-    if (extraNotes) lines.push(`Детали / адрес: ${extraNotes}`);
 
     const cartIds = Object.keys(state.cart).map(Number);
     if (cartIds.length > 0) {
       const { totalPieces, totalSum } = getCartTotals();
-      lines.push("", `Состав стола (${totalPieces} шт. на ${formatMoney(totalSum)}):`);
-      cartIds.forEach((id, idx) => {
+      lines.push("----------------------------------------");
+      const MAX_ROWS = 40;
+      let shownSum = 0;
+      cartIds.slice(0, MAX_ROWS).forEach((id, idx) => {
         const item = ITEMS_BY_ID.get(id);
         const entry = state.cart[id];
         if (!item || !entry) return;
         const noteStr = entry.note ? ` [${entry.note}]` : "";
-        lines.push(`${idx + 1}. ${item.name}${noteStr} — ${entry.qty} шт. × ${item.price} ₽ = ${entry.qty * item.price} ₽`);
+        const sum = entry.qty * item.price;
+        shownSum += sum;
+        lines.push(`${idx + 1}. ${item.name}${noteStr} — ${entry.qty} шт. × ${item.price} ₽ = ${sum} ₽`);
       });
+      if (cartIds.length > MAX_ROWS) {
+        lines.push(`… и ещё ${cartIds.length - MAX_ROWS} поз. на ${formatMoney(totalSum - shownSum)}`);
+      }
+      lines.push("----------------------------------------");
+      lines.push(`ИТОГО: ${cartIds.length} поз., ${totalPieces} шт. на сумму ${formatMoney(totalSum)}`);
     } else {
       lines.push("", "Пожалуйста, предложите 2–3 варианта меню под указанное число гостей.");
     }
+    if (extraNotes) lines.push(`Детали / адрес: ${extraNotes}`);
 
     return lines.join("\n");
   }
@@ -861,6 +883,7 @@
     const ids = Object.keys(state.cart).map(Number);
     const { totalPieces, totalSum } = getCartTotals();
     const today = new Date().toLocaleDateString("ru-RU");
+    const meta = buildEstimateMeta();
 
     const rowsHtml = ids
       .map((id, idx) => {
@@ -887,8 +910,8 @@
           </div>
         </div>
         <div style="text-align:right;">
-          <strong>${today} · ${state.guests}\u00A0гостей</strong><br>
-          <span>${escapeHtml(CFG.legalShort)} · ИНН ${escapeHtml(CFG.inn)}</span>
+          <strong>Смета ${meta.number} от ${today}</strong><br>
+          <span>${state.guests}\u00A0гостей · ${escapeHtml(CFG.legalShort)} · ИНН ${escapeHtml(CFG.inn)}</span>
         </div>
       </div>
       ${
@@ -902,6 +925,139 @@
       }
       <p style="font-size:10pt;">Готовим строго из-под ножа · Без минимальной суммы заказа · Оплата после получения.</p>
     `;
+  }
+
+  /* ======================================================================
+     Смета документом DOCX: собирается в браузере без библиотек —
+     ZIP-контейнер (method=store) + WordprocessingML, кириллица нативно.
+     ====================================================================== */
+  function zipStoreSync(files) {
+    const enc = new TextEncoder();
+    const crcTable = (() => {
+      const t = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+      return t;
+    })();
+    const crc32 = (u8) => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcTable[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+    const d = new Date();
+    const dosT = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+    const dosD = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+    const parts = [];
+    const central = [];
+    let offset = 0;
+    files.forEach((f) => {
+      const nameU8 = enc.encode(f.name);
+      const data = f.data;
+      const crc = crc32(data);
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, dosT, true); lh.setUint16(12, dosD, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+      lh.setUint16(26, nameU8.length, true); lh.setUint16(28, 0, true);
+      parts.push(new Uint8Array(lh.buffer), nameU8, data);
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, dosT, true); ch.setUint16(14, dosD, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+      ch.setUint16(28, nameU8.length, true); ch.setUint16(30, 0, true); ch.setUint16(32, 0, true);
+      ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true); ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), nameU8);
+      offset += 30 + nameU8.length + data.length;
+    });
+    const centralSize = central.reduce((s, u) => s + u.length, 0);
+    const eocd = new DataView(new ArrayBuffer(22));
+    eocd.setUint32(0, 0x06054b50, true);
+    eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true);
+    eocd.setUint32(12, centralSize, true); eocd.setUint32(16, offset, true);
+    const all = parts.concat(central, [new Uint8Array(eocd.buffer)]);
+    const out = new Uint8Array(offset + centralSize + 22);
+    let pos = 0;
+    all.forEach((u) => { out.set(u, pos); pos += u.length; });
+    return out;
+  }
+
+  function downloadEstimateDocx() {
+    const ids = Object.keys(state.cart).map(Number);
+    if (ids.length === 0) return;
+    const meta = buildEstimateMeta();
+    const { totalPieces, totalSum } = getCartTotals();
+    const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const P = (t, o) => {
+      o = o || {};
+      return '<w:p><w:pPr>' + (o.align ? '<w:jc w:val="' + o.align + '"/>' : '') +
+        '<w:spacing w:after="' + (o.after == null ? 60 : o.after) + '"/></w:pPr><w:r><w:rPr>' +
+        (o.bold ? '<w:b/>' : '') + '<w:sz w:val="' + (o.sz || 21) + '"/></w:rPr><w:t xml:space="preserve">' +
+        esc(t) + '</w:t></w:r></w:p>';
+    };
+    const cell = (t, w, bold) => '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/></w:tcPr>' + P(t, { bold: bold, sz: 19, after: 20 }) + '</w:tc>';
+    const row = (cells) => '<w:tr>' + cells.join("") + '</w:tr>';
+    const W = [700, 4538, 1300, 1500, 1600];
+    let tbl = '<w:tbl><w:tblPr><w:tblW w:w="9638" w:type="dxa"/><w:tblBorders>' +
+      ["top", "left", "bottom", "right", "insideH", "insideV"]
+        .map((s) => '<w:' + s + ' w:val="single" w:sz="4" w:space="0" w:color="8A7A6B"/>').join("") +
+      '</w:tblBorders></w:tblPr><w:tblGrid>' + W.map((w) => '<w:gridCol w:w="' + w + '"/>').join("") + '</w:tblGrid>';
+    tbl += row([cell("№", W[0], true), cell("Наименование", W[1], true), cell("Кол-во", W[2], true), cell("Цена", W[3], true), cell("Сумма", W[4], true)]);
+    ids.forEach((id, idx) => {
+      const item = ITEMS_BY_ID.get(id);
+      const entry = state.cart[id];
+      if (!item || !entry) return;
+      tbl += row([
+        cell(String(idx + 1), W[0]),
+        cell(item.name + (entry.note ? " (" + entry.note + ")" : ""), W[1]),
+        cell(entry.qty + " шт.", W[2]),
+        cell(formatMoney(item.price), W[3]),
+        cell(formatMoney(item.price * entry.qty), W[4]),
+      ]);
+    });
+    tbl += row([cell("", W[0], true), cell("Итого", W[1], true), cell(totalPieces + " шт.", W[2], true), cell("", W[3], true), cell(formatMoney(totalSum), W[4], true)]);
+    tbl += '</w:tbl>';
+
+    const nameField = document.getElementById("drawer-name");
+    const phoneField = document.getElementById("drawer-phone");
+    const notesField = document.getElementById("drawer-address");
+    const body = [
+      P("СМЕТА " + meta.number, { bold: true, sz: 30, align: "center", after: 40 }),
+      P("от " + meta.dateRu + " · г. Самара", { sz: 20, align: "center", after: 160 }),
+      P("Исполнитель: " + CFG.legalFull + "; ИНН " + CFG.inn + ", КПП " + CFG.kpp + ", ОГРН " + CFG.ogrn + "; УСН 6%.", { sz: 19 }),
+      P("Адрес: " + CFG.address + "; тел. " + CFG.phoneDisplay + "; сайт " + CFG.siteUrl, { sz: 19, after: 120 }),
+      P("Заказчик: " + (nameField && nameField.value.trim() ? nameField.value.trim() : "—") + (phoneField && phoneField.value.trim() ? ", тел. " + phoneField.value.trim() : ""), { sz: 19 }),
+      P("Повод: " + state.occasion + "; гостей: " + state.guests + " чел.", { sz: 19, after: 120 }),
+      tbl,
+      P("", { after: 40 }),
+      P("Итого: " + ids.length + " поз., " + totalPieces + " шт. на сумму " + formatMoney(totalSum) + ". НДС не облагается (УСН).", { bold: true }),
+      notesField && notesField.value.trim() ? P("Примечания заказчика: " + notesField.value.trim(), { sz: 19 }) : "",
+      P("Оплата после получения; без минимальной суммы заказа. Смета сформирована автоматически на сайте " + CFG.siteUrl + " " + meta.dateRu + ".", { sz: 18, after: 200 }),
+      P("Подпись исполнителя: ______ / " + CFG.director + " /", { sz: 19 }),
+    ].join("");
+
+    const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body +
+      '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>' +
+      '</w:body></w:document>';
+    const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+    const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+
+    const enc = new TextEncoder();
+    const zip = zipStoreSync([
+      { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
+      { name: "_rels/.rels", data: enc.encode(rels) },
+      { name: "word/document.xml", data: enc.encode(documentXml) },
+    ]);
+    const blob = new Blob([zip], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "Смета-ТонПлат-" + meta.number + ".docx";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
   /* ========================================================================
@@ -1155,6 +1311,9 @@
       renderPrintEstimate();
       window.print();
     });
+    const downloadDocx = () => downloadEstimateDocx();
+    document.getElementById("drawer-docx-btn").addEventListener("click", downloadDocx);
+    document.getElementById("sent-docx-btn").addEventListener("click", downloadDocx);
     document.getElementById("sent-back-btn").addEventListener("click", () => {
       state.orderSentMode = false;
       renderDrawerContents();
