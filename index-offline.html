@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#FAF7F2">
   <meta name="referrer" content="no-referrer">
   <!-- Защита от сторонних скриптов, фреймов и несанкционированных запросов. На GitHub Pages — через meta. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-cWaIXBSeBEnJrbWm9RwqK6lubOo5bRq9ajf6faSzQZw=' 'sha256-+6vu+y30nLeKMWe7y2jq9BVGKIfIzkdNMhpo/TD6BlI=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-pDoWtfQ9umx5N8XCf+JJVoBQs3SfuisR3+au2IJPjeQ='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-cWaIXBSeBEnJrbWm9RwqK6lubOo5bRq9ajf6faSzQZw=' 'sha256-+6vu+y30nLeKMWe7y2jq9BVGKIfIzkdNMhpo/TD6BlI=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-g1NUIAwiuFgrgS/+VgQ6ctDAsOjN4Qw2H0/womEF27E='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
@@ -2686,7 +2686,9 @@ body.tonplat-order-open .site-header { display: none !important; }
   font-size: clamp(1.25rem, 4vw, 1.5rem);
 }
 @media (max-width: 767.98px) {
-  .site-header .brand-name { color: #000000 !important; font-size: 23px; }
+  /* Мобильная шапка тёмная (rgba(18,13,9,.82)) — бренд светлым, иначе сливается с фоном. */
+  .site-header .brand-name { color: #fff7ee !important; font-size: 23px; }
+  .site-header .brand-tagline { color: rgba(255, 247, 238, 0.82) !important; }
 }
 
 /* Мелкая заметка под футером */
@@ -6204,6 +6206,10 @@ window.TONPLAT_DATA = {
       const hpInput = document.getElementById("lead-honeypot");
       payload[hpField] = hpInput && hpInput.value ? hpInput.value : "";
     }
+    // Время заполнения в мс от открытия страницы: антибот-фильтр Zapnoty
+    // «Минимальное время заполнения (сек)» = 3. Без поля _submit_time заявки
+    // из JS-формы помечаются спамом с причиной «без времени заполнения».
+    try { payload._submit_time = String(Math.round(performance.now())); } catch (_) {}
     sendingLead = true;
     errorEl.hidden = true;
     const originalText = submitButton.textContent;

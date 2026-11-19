@@ -5,6 +5,22 @@
 (function () {
   "use strict";
 
+  /* Фирменный прелоадер: прячем по полной загрузке окна или максимум через 4 с. */
+  (function () {
+    const loader = document.getElementById("tp-loader");
+    if (!loader) return;
+    let done = false;
+    const hide = function () {
+      if (done) return;
+      done = true;
+      loader.classList.add("is-done");
+      setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 600);
+    };
+    if (document.readyState === "complete") setTimeout(hide, 250);
+    else window.addEventListener("load", function () { setTimeout(hide, 250); });
+    setTimeout(hide, 4000);
+  }());
+
   const CFG = window.TONPLAT_CONFIG;
   const DATA = window.TONPLAT_DATA;
   const ITEMS_BY_ID = new Map();
@@ -590,7 +606,7 @@
           const entry = state.cart[id];
           if (!item || !entry) return "";
           return `<div class="cart-row">
-            <img class="cart-thumb content-photo" src="${escapeHtml(item.image)}" width="112" height="84" alt="">
+            <img class="cart-thumb content-photo" src="${escapeHtml(item.image)}" width="112" height="84" alt="" loading="lazy" decoding="async">
             <div style="min-width: 0;">
               <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px;">
                 <strong style="font-size: var(--text-sm); line-height: 1.25;">${escapeHtml(item.name)}${entry.note ? ` (${escapeHtml(entry.note)})` : ""}</strong>
@@ -712,6 +728,16 @@
       phone: phone,
       message: message + "\n\nСогласие на обработку ПД (ред. 08.11.2026): подтверждено отдельной отметкой на сайте.",
     };
+    // Honeypot: скрытое поле-ловушка из кабинета Zapnoty, человек его не заполняет.
+    const hpField = CFG.zapnoty && CFG.zapnoty.honeypot ? String(CFG.zapnoty.honeypot) : "";
+    if (hpField) {
+      const hpInput = document.getElementById("lead-honeypot");
+      payload[hpField] = hpInput && hpInput.value ? hpInput.value : "";
+    }
+    // Время заполнения в мс от открытия страницы: антибот-фильтр Zapnoty
+    // «Минимальное время заполнения (сек)» = 3. Без поля _submit_time заявки
+    // из JS-формы помечаются спамом с причиной «без времени заполнения».
+    try { payload._submit_time = String(Math.round(performance.now())); } catch (_) {}
     sendingLead = true;
     errorEl.hidden = true;
     const originalText = submitButton.textContent;
@@ -729,6 +755,9 @@
       let body = null;
       try { body = await response.json(); } catch (_) {}
       if (!response.ok || (body && body.ok === false)) {
+        const serverMsg = body && body.error ? String(body.error) : "";
+        // Origin-check Zapnoty: домен сайта не добавлен в allowed_origins формы.
+        if (/источник|origin/i.test(serverMsg)) throw new Error("ORIGIN_NOT_ALLOWED");
         throw new Error("Не удалось отправить заявку");
       }
       // Успех означает приём Zapnoty, а не гарантию доставки уведомления адресату в MAX.
@@ -741,8 +770,12 @@
       }
       document.querySelectorAll("#drawer-order-form, #footer-order-form").forEach((form) => form.reset());
       announce("Заявка принята. Ожидайте ответа менеджера.");
-    } catch (_) {
-      errorEl.textContent = "Не удалось отправить заявку. Проверьте подключение или свяжитесь с нами по телефону. Перед повторной отправкой уточните, не поступила ли первая заявка.";
+    } catch (err) {
+      if (err && err.message === "ORIGIN_NOT_ALLOWED") {
+        errorEl.textContent = "Сервис приёма заявок не принимает запросы с этого домена: в кабинете Zapnoty в allowed_origins формы нужно добавить https://тонплат.рф и https://xn--80avfdgpf.xn--p1ai. Оформите заказ по телефону +7 (927) 605-84-88 — мы примем его вручную.";
+      } else {
+        errorEl.textContent = "Не удалось отправить заявку. Проверьте подключение или свяжитесь с нами по телефону. Перед повторной отправкой уточните, не поступила ли первая заявка.";
+      }
       errorEl.hidden = false;
       announce(errorEl.textContent);
     } finally {
