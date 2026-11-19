@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#FAF7F2">
   <meta name="referrer" content="no-referrer">
   <!-- Защита от сторонних скриптов, фреймов и несанкционированных запросов. На GitHub Pages — через meta. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-cWaIXBSeBEnJrbWm9RwqK6lubOo5bRq9ajf6faSzQZw=' 'sha256-KO5HZUHqSi8Sv25MIiGlfTSZNLSOjXygLRkLM3/wPlA=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-ipr8fwY8L/plFdKj8tLMvx/lQ1emgb8hG2ndXToxAs0='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-cWaIXBSeBEnJrbWm9RwqK6lubOo5bRq9ajf6faSzQZw=' 'sha256-KO5HZUHqSi8Sv25MIiGlfTSZNLSOjXygLRkLM3/wPlA=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-eNYOpJCNT5NVG3lwYvPqanmhAxVdLNDt8knuDujQBc4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
@@ -3207,6 +3207,10 @@ body.tonplat-order-open .site-header { display: none !important; }
                 <input id="footer-phone" class="form-input" maxlength="30" type="tel" placeholder="+7 (960) 123-45-67" autocomplete="tel" required>
               </div>
               <div class="form-field">
+                <label class="field-label" for="footer-telegram">Telegram (по желанию)</label>
+                <input id="footer-telegram" class="form-input" maxlength="64" type="text" placeholder="@username или номер" autocomplete="off">
+              </div>
+              <div class="form-field">
                 <label class="field-label" for="footer-notes">Повод, число гостей или пожелания (необязательно)</label>
                 <input id="footer-notes" class="form-input" maxlength="500" type="text" placeholder="Например: фуршет в офис на 20 чел., пятница">
               </div>
@@ -3337,6 +3341,10 @@ body.tonplat-order-open .site-header { display: none !important; }
             <label class="field-label" for="drawer-phone">Телефон *</label>
             <input id="drawer-phone" class="form-input" maxlength="30" type="tel" placeholder="+7 (960) 123-45-67" autocomplete="tel" required>
           </div>
+          <div class="form-field">
+            <label class="field-label" for="drawer-telegram">Telegram (по желанию)</label>
+            <input id="drawer-telegram" class="form-input" maxlength="64" type="text" placeholder="@username или номер" autocomplete="off">
+          </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-block-end: 10px;">
             <button id="opt-chip-halal" class="tag-chip" type="button" aria-pressed="false">Нужен 100&nbsp;% «Халяль»</button>
@@ -3359,11 +3367,8 @@ body.tonplat-order-open .site-header { display: none !important; }
             Отправить заявку
           </button>
 
-          <button id="drawer-pdf-btn" class="btn btn-pastel" type="button" style="width: 100%; margin-block-start: 8px;" hidden>
-            Скачать / распечатать смету PDF
-          </button>
           <button id="drawer-docx-btn" class="btn btn-pastel" type="button" style="width: 100%; margin-block-start: 8px;" hidden>
-            Скачать смету документом (DOCX)
+            Скачать смету (DOCX)
           </button>
         </form>
       </div>
@@ -3378,8 +3383,7 @@ body.tonplat-order-open .site-header { display: none !important; }
 
         <div style="display: flex; flex-direction: column; gap: 8px; margin-block-end: 14px;">
           <a class="btn btn-pastel" href="tel:+79276058488" style="width: 100%;">Позвонить по вопросу заказа</a>
-          <button id="sent-pdf-btn" class="btn btn-outline" type="button" style="width: 100%;">Сохранить смету в PDF</button>
-          <button id="sent-docx-btn" class="btn btn-outline" type="button" style="width: 100%;">Сохранить смету документом (DOCX)</button>
+          <button id="sent-docx-btn" class="btn btn-outline" type="button" style="width: 100%;">Сохранить смету (DOCX)</button>
         </div>
 
         <pre id="sent-preview" style="margin: 0 0 12px; padding: 12px; max-height: 180px; overflow-y: auto; border-radius: 8px; background: var(--color-bg-page); border: 1px solid var(--color-border-subtle); font-family: var(--font-sans); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: break-word;"></pre>
@@ -6153,6 +6157,13 @@ window.TONPLAT_DATA = {
     };
   }
 
+  /* Telegram — поле по желанию: есть в drawer- и footer-форме, берём заполненное. */
+  function readTelegramField() {
+    const a = document.getElementById("drawer-telegram");
+    const b = document.getElementById("footer-telegram");
+    return ((a && a.value.trim()) || (b && b.value.trim()) || "");
+  }
+
   /* В заявку уходит формальная смета: номер, дата, реквизиты, построчный состав, итог. */
   function buildOrderMessage(name, phone, extraNotes) {
     const meta = buildEstimateMeta();
@@ -6160,7 +6171,7 @@ window.TONPLAT_DATA = {
       `СМЕТА ${meta.number} от ${meta.dateRu} — ТонПлат (Самара)`,
       `Исполнитель: ${CFG.legalShort}, ИНН ${CFG.inn}, КПП ${CFG.kpp}, ОГРН ${CFG.ogrn}`,
       `${CFG.address} · тел. ${CFG.phoneDisplay} · ${CFG.siteUrl}`,
-      `Заказчик: ${name}, ${phone}`,
+      `Заказчик: ${name}, ${phone}${readTelegramField() ? "; Telegram: " + readTelegramField() : ""}`,
       `Повод: ${state.occasion}; гостей: ${state.guests} чел.`,
     ];
 
@@ -6236,6 +6247,18 @@ window.TONPLAT_DATA = {
     // «Минимальное время заполнения (сек)» = 3. Без поля _submit_time заявки
     // из JS-формы помечаются спамом с причиной «без времени заполнения».
     try { payload._submit_time = String(Math.round(performance.now())); } catch (_) {}
+    // Смета файлом: готовый DOCX (base64) едет вместе с заявкой — workflow
+    // «Zapnoty → MAX» прикладывает его к сообщению как документ (см. README).
+    try {
+      const docxDoc = buildEstimateDocxBytes();
+      if (docxDoc) {
+        const b64 = u8ToBase64(docxDoc.bytes);
+        if (b64.length <= 400000) {
+          payload.docx_name = docxDoc.name;
+          payload.docx_b64 = b64;
+        }
+      }
+    } catch (_) {}
     sendingLead = true;
     errorEl.hidden = true;
     const originalText = submitButton.textContent;
@@ -6452,9 +6475,9 @@ window.TONPLAT_DATA = {
     return out;
   }
 
-  function downloadEstimateDocx() {
+  function buildEstimateDocxBytes() {
     const ids = Object.keys(state.cart).map(Number);
-    if (ids.length === 0) return;
+    if (ids.length === 0) return null;
     const meta = buildEstimateMeta();
     const { totalPieces, totalSum } = getCartTotals();
     const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -6496,7 +6519,7 @@ window.TONPLAT_DATA = {
       P("от " + meta.dateRu + " · г. Самара", { sz: 20, align: "center", after: 160 }),
       P("Исполнитель: " + CFG.legalFull + "; ИНН " + CFG.inn + ", КПП " + CFG.kpp + ", ОГРН " + CFG.ogrn + "; УСН 6%.", { sz: 19 }),
       P("Адрес: " + CFG.address + "; тел. " + CFG.phoneDisplay + "; сайт " + CFG.siteUrl, { sz: 19, after: 120 }),
-      P("Заказчик: " + (nameField && nameField.value.trim() ? nameField.value.trim() : "—") + (phoneField && phoneField.value.trim() ? ", тел. " + phoneField.value.trim() : ""), { sz: 19 }),
+      P("Заказчик: " + (nameField && nameField.value.trim() ? nameField.value.trim() : "—") + (phoneField && phoneField.value.trim() ? ", тел. " + phoneField.value.trim() : "") + (readTelegramField() ? ", Telegram: " + readTelegramField() : ""), { sz: 19 }),
       P("Повод: " + state.occasion + "; гостей: " + state.guests + " чел.", { sz: 19, after: 120 }),
       tbl,
       P("", { after: 40 }),
@@ -6525,15 +6548,28 @@ window.TONPLAT_DATA = {
       { name: "_rels/.rels", data: enc.encode(rels) },
       { name: "word/document.xml", data: enc.encode(documentXml) },
     ]);
-    const blob = new Blob([zip], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    return { bytes: zip, name: "Смета-ТонПлат-" + meta.number + ".docx" };
+  }
+
+  function u8ToBase64(u8) {
+    let bin = "";
+    const CH = 0x8000;
+    for (let i = 0; i < u8.length; i += CH) bin += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    return btoa(bin);
+  }
+
+  function downloadEstimateDocx() {
+    const doc = buildEstimateDocxBytes();
+    if (!doc) return;
+    const blob = new Blob([doc.bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "Смета-ТонПлат-" + meta.number + ".docx";
+    a.download = doc.name;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    setTimeout(() => URL.revokeObjectURL(url), 4004);
   }
 
   /* ========================================================================
@@ -6779,14 +6815,6 @@ window.TONPLAT_DATA = {
       completeOrderSubmission(nameVal, fPhone.value.trim(), document.getElementById("footer-notes").value.trim(), fErr, document.querySelector("#footer-order-form button[type=submit]"));
     });
 
-    document.getElementById("drawer-pdf-btn").addEventListener("click", () => {
-      renderPrintEstimate();
-      window.print();
-    });
-    document.getElementById("sent-pdf-btn").addEventListener("click", () => {
-      renderPrintEstimate();
-      window.print();
-    });
     const downloadDocx = () => downloadEstimateDocx();
     document.getElementById("drawer-docx-btn").addEventListener("click", downloadDocx);
     document.getElementById("sent-docx-btn").addEventListener("click", downloadDocx);

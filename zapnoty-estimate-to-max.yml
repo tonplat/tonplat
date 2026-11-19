@@ -1,0 +1,133 @@
+# ============================================================================
+# ТонПлат: смета-файл в MAX (ред. 19.11.2026)
+# ----------------------------------------------------------------------------
+# Сайт вместе с заявкой отправляет готовый DOCX сметы (поле docx_b64, base64).
+# Этот workflow раз в 5 минут забирает новые заявки из Zapnoty, загружает DOCX
+# в приватное файловое хранилище Zapnoty и шлёт подписчику в MAX сообщение
+# С ФАЙЛОМ через POST /v1/send (media.type=document, media_id).
+#
+# Установка (инструкция также в README.md, раздел «Смета файлом в MAX»):
+#   1. Скопируйте этот файл в репозиторий сайта: .github/workflows/zapnoty-estimate-to-max.yml
+#   2. Кабинет Zapnoty → «API и MCP» → создайте ключ проекта zn_live_… → секрет ZN_API_KEY.
+#   3. Кабинет Zapnoty → «Подписчики» → deep-link для MAX → откройте его сами
+#      и нажмите «Старт» → появится subscriber_id вида sub_… → секрет ZN_SUBSCRIBER_MAX.
+#      (Или получите список: GET /v1/subscribers с ключом zn_live_….)
+#   4. Если загрузка файла не примет ключ проекта — создайте агентский ключ
+#      (раздел Helpdesk/Агенты, agtk_…) → секрет ZN_AGENT_KEY (необязательный:
+#      workflow сначала пробует ключ проекта).
+#   5. GitHub репозитория → Settings → Secrets and variables → Actions →
+#      добавить ZN_API_KEY, ZN_SUBSCRIBER_MAX (и ZN_AGENT_KEY при необходимости).
+#   6. Запустите вручную: Actions → zapnoty-estimate-to-max → Run workflow.
+#      Дальше работает по расписанию каждые 5 минут.
+#
+# Секреты хранятся только в GitHub Secrets; в код и на сайт ключи не попадают.
+# ============================================================================
+name: zapnoty-estimate-to-max
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore cursor
+        uses: actions/cache@v4
+        with:
+          path: cursor.json
+          key: zapnoty-cursor-${{ github.run_id }}
+          restore-keys: |
+            zapnoty-cursor-
+
+      - name: Deliver DOCX estimates to MAX
+        env:
+          ZN_KEY: ${{ secrets.ZN_API_KEY }}
+          ZN_AGENT_KEY: ${{ secrets.ZN_AGENT_KEY }}
+          SUB_ID: ${{ secrets.ZN_SUBSCRIBER_MAX }}
+          FORM_ID: e07d9ea7-c654-4bff-a398-1a8b4dbbd119
+        run: |
+          python3 - <<'PY'
+          import os, json, base64, pathlib, uuid, urllib.request, urllib.error
+
+          ZN = os.environ["ZN_KEY"]
+          AGT = os.environ.get("ZN_AGENT_KEY") or ZN
+          SUB = os.environ["SUB_ID"]
+          FORM = os.environ["FORM_ID"]
+          API = "https://api.zapnoty.com"
+          DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+          cur = pathlib.Path("cursor.json")
+          state = json.loads(cur.read_text()) if cur.exists() else {"seen": []}
+          seen = set(state["seen"])
+
+          def req(method, path, key, data=None, extra_headers=None):
+              headers = {"Authorization": "Bearer " + key}
+              if extra_headers:
+                  headers.update(extra_headers)
+              body = None
+              if data is not None:
+                  body = data if isinstance(data, bytes) else json.dumps(data).encode()
+                  if not extra_headers or "Content-Type" not in extra_headers:
+                      headers["Content-Type"] = "application/json"
+              r = urllib.request.Request(API + path, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(r, timeout=90) as resp:
+                      return resp.status, resp.read()
+              except urllib.error.HTTPError as e:
+                  return e.code, e.read()
+
+          if not SUB:
+              raise SystemExit("Нет ZN_SUBSCRIBER_MAX: добавьте subscriber_id в секреты.")
+
+          st, raw = req("GET", f"/v1/forms/{FORM}/submissions?limit=25", ZN)
+          if st != 200:
+              raise SystemExit(f"Не удалось получить заявки: {st} {raw[:300]!r}")
+          payload = json.loads(raw)
+          items = payload.get("submissions") or payload.get("items") or payload.get("data") or []
+          if isinstance(items, dict):
+              items = items.get("items") or []
+
+          fresh = [it for it in items if str(it.get("id") or it.get("submission_id") or "") not in seen and (it.get("id") or it.get("submission_id"))]
+          fresh.reverse()  # старые сначала
+
+          for it in fresh:
+              sid = str(it.get("id") or it.get("submission_id"))
+              fields = it.get("fields") or it.get("data") or it
+              b64 = fields.get("docx_b64") or ""
+              fname = fields.get("docx_name") or "smeta-tonplat.docx"
+              msg = (fields.get("message") or "Новая смета с сайта тонплат.рф")[:3500]
+
+              media_id = None
+              if b64:
+                  data = base64.b64decode(b64)
+                  keys = [ZN, AGT] if AGT != ZN else [ZN]
+                  for key in keys:
+                      boundary = "----zapnoty" + uuid.uuid4().hex
+                      body = (
+                          f"--{boundary}\r\n"
+                          f'Content-Disposition: form-data; name="file"; filename="{fname}"\r\n'
+                          f"Content-Type: {DOCX_MIME}\r\n\r\n"
+                      ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+                      st2, raw2 = req("POST", "/v1/agent/media", key, body,
+                                      {"Content-Type": "multipart/form-data; boundary=" + boundary})
+                      if st2 == 200:
+                          media_id = json.loads(raw2).get("id")
+                          break
+                      print(f"upload fail key={key[:6]}… {st2} {raw2[:200]!r}")
+
+              body = {"subscriber_id": SUB, "text": msg}
+              if media_id:
+                  body["media"] = {"type": "document", "media_id": media_id}
+              st3, raw3 = req("POST", "/v1/send", ZN, body)
+              print(f"send {sid}: {st3} {raw3[:200]!r}")
+              seen.add(sid)
+
+          state["seen"] = list(seen)[-500:]
+          cur.write_text(json.dumps(state))
+          print("done, processed:", len(fresh))
+          PY

@@ -677,6 +677,13 @@
     };
   }
 
+  /* Telegram — поле по желанию: есть в drawer- и footer-форме, берём заполненное. */
+  function readTelegramField() {
+    const a = document.getElementById("drawer-telegram");
+    const b = document.getElementById("footer-telegram");
+    return ((a && a.value.trim()) || (b && b.value.trim()) || "");
+  }
+
   /* В заявку уходит формальная смета: номер, дата, реквизиты, построчный состав, итог. */
   function buildOrderMessage(name, phone, extraNotes) {
     const meta = buildEstimateMeta();
@@ -684,7 +691,7 @@
       `СМЕТА ${meta.number} от ${meta.dateRu} — ТонПлат (Самара)`,
       `Исполнитель: ${CFG.legalShort}, ИНН ${CFG.inn}, КПП ${CFG.kpp}, ОГРН ${CFG.ogrn}`,
       `${CFG.address} · тел. ${CFG.phoneDisplay} · ${CFG.siteUrl}`,
-      `Заказчик: ${name}, ${phone}`,
+      `Заказчик: ${name}, ${phone}${readTelegramField() ? "; Telegram: " + readTelegramField() : ""}`,
       `Повод: ${state.occasion}; гостей: ${state.guests} чел.`,
     ];
 
@@ -760,6 +767,18 @@
     // «Минимальное время заполнения (сек)» = 3. Без поля _submit_time заявки
     // из JS-формы помечаются спамом с причиной «без времени заполнения».
     try { payload._submit_time = String(Math.round(performance.now())); } catch (_) {}
+    // Смета файлом: готовый DOCX (base64) едет вместе с заявкой — workflow
+    // «Zapnoty → MAX» прикладывает его к сообщению как документ (см. README).
+    try {
+      const docxDoc = buildEstimateDocxBytes();
+      if (docxDoc) {
+        const b64 = u8ToBase64(docxDoc.bytes);
+        if (b64.length <= 400000) {
+          payload.docx_name = docxDoc.name;
+          payload.docx_b64 = b64;
+        }
+      }
+    } catch (_) {}
     sendingLead = true;
     errorEl.hidden = true;
     const originalText = submitButton.textContent;
@@ -976,9 +995,9 @@
     return out;
   }
 
-  function downloadEstimateDocx() {
+  function buildEstimateDocxBytes() {
     const ids = Object.keys(state.cart).map(Number);
-    if (ids.length === 0) return;
+    if (ids.length === 0) return null;
     const meta = buildEstimateMeta();
     const { totalPieces, totalSum } = getCartTotals();
     const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -1020,7 +1039,7 @@
       P("от " + meta.dateRu + " · г. Самара", { sz: 20, align: "center", after: 160 }),
       P("Исполнитель: " + CFG.legalFull + "; ИНН " + CFG.inn + ", КПП " + CFG.kpp + ", ОГРН " + CFG.ogrn + "; УСН 6%.", { sz: 19 }),
       P("Адрес: " + CFG.address + "; тел. " + CFG.phoneDisplay + "; сайт " + CFG.siteUrl, { sz: 19, after: 120 }),
-      P("Заказчик: " + (nameField && nameField.value.trim() ? nameField.value.trim() : "—") + (phoneField && phoneField.value.trim() ? ", тел. " + phoneField.value.trim() : ""), { sz: 19 }),
+      P("Заказчик: " + (nameField && nameField.value.trim() ? nameField.value.trim() : "—") + (phoneField && phoneField.value.trim() ? ", тел. " + phoneField.value.trim() : "") + (readTelegramField() ? ", Telegram: " + readTelegramField() : ""), { sz: 19 }),
       P("Повод: " + state.occasion + "; гостей: " + state.guests + " чел.", { sz: 19, after: 120 }),
       tbl,
       P("", { after: 40 }),
@@ -1049,15 +1068,28 @@
       { name: "_rels/.rels", data: enc.encode(rels) },
       { name: "word/document.xml", data: enc.encode(documentXml) },
     ]);
-    const blob = new Blob([zip], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    return { bytes: zip, name: "Смета-ТонПлат-" + meta.number + ".docx" };
+  }
+
+  function u8ToBase64(u8) {
+    let bin = "";
+    const CH = 0x8000;
+    for (let i = 0; i < u8.length; i += CH) bin += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    return btoa(bin);
+  }
+
+  function downloadEstimateDocx() {
+    const doc = buildEstimateDocxBytes();
+    if (!doc) return;
+    const blob = new Blob([doc.bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "Смета-ТонПлат-" + meta.number + ".docx";
+    a.download = doc.name;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    setTimeout(() => URL.revokeObjectURL(url), 4004);
   }
 
   /* ========================================================================
@@ -1303,14 +1335,6 @@
       completeOrderSubmission(nameVal, fPhone.value.trim(), document.getElementById("footer-notes").value.trim(), fErr, document.querySelector("#footer-order-form button[type=submit]"));
     });
 
-    document.getElementById("drawer-pdf-btn").addEventListener("click", () => {
-      renderPrintEstimate();
-      window.print();
-    });
-    document.getElementById("sent-pdf-btn").addEventListener("click", () => {
-      renderPrintEstimate();
-      window.print();
-    });
     const downloadDocx = () => downloadEstimateDocx();
     document.getElementById("drawer-docx-btn").addEventListener("click", downloadDocx);
     document.getElementById("sent-docx-btn").addEventListener("click", downloadDocx);

@@ -902,6 +902,10 @@
                 <input id="footer-phone" class="form-input" maxlength="30" type="tel" placeholder="+7 (960) 123-45-67" autocomplete="tel" required>
               </div>
               <div class="form-field">
+                <label class="field-label" for="footer-telegram">Telegram (по желанию)</label>
+                <input id="footer-telegram" class="form-input" maxlength="64" type="text" placeholder="@username или номер" autocomplete="off">
+              </div>
+              <div class="form-field">
                 <label class="field-label" for="footer-notes">Повод, число гостей или пожелания (необязательно)</label>
                 <input id="footer-notes" class="form-input" maxlength="500" type="text" placeholder="Например: фуршет в офис на 20 чел., пятница">
               </div>
@@ -1032,6 +1036,10 @@
             <label class="field-label" for="drawer-phone">Телефон *</label>
             <input id="drawer-phone" class="form-input" maxlength="30" type="tel" placeholder="+7 (960) 123-45-67" autocomplete="tel" required>
           </div>
+          <div class="form-field">
+            <label class="field-label" for="drawer-telegram">Telegram (по желанию)</label>
+            <input id="drawer-telegram" class="form-input" maxlength="64" type="text" placeholder="@username или номер" autocomplete="off">
+          </div>
 
           <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-block-end: 10px;">
             <button id="opt-chip-halal" class="tag-chip" type="button" aria-pressed="false">Нужен 100&nbsp;% «Халяль»</button>
@@ -1054,11 +1062,8 @@
             Отправить заявку
           </button>
 
-          <button id="drawer-pdf-btn" class="btn btn-pastel" type="button" style="width: 100%; margin-block-start: 8px;" hidden>
-            Скачать / распечатать смету PDF
-          </button>
           <button id="drawer-docx-btn" class="btn btn-pastel" type="button" style="width: 100%; margin-block-start: 8px;" hidden>
-            Скачать смету документом (DOCX)
+            Скачать смету (DOCX)
           </button>
         </form>
       </div>
@@ -1073,8 +1078,7 @@
 
         <div style="display: flex; flex-direction: column; gap: 8px; margin-block-end: 14px;">
           <a class="btn btn-pastel" href="tel:+79276058488" style="width: 100%;">Позвонить по вопросу заказа</a>
-          <button id="sent-pdf-btn" class="btn btn-outline" type="button" style="width: 100%;">Сохранить смету в PDF</button>
-          <button id="sent-docx-btn" class="btn btn-outline" type="button" style="width: 100%;">Сохранить смету документом (DOCX)</button>
+          <button id="sent-docx-btn" class="btn btn-outline" type="button" style="width: 100%;">Сохранить смету (DOCX)</button>
         </div>
 
         <pre id="sent-preview" style="margin: 0 0 12px; padding: 12px; max-height: 180px; overflow-y: auto; border-radius: 8px; background: var(--color-bg-page); border: 1px solid var(--color-border-subtle); font-family: var(--font-sans); font-size: var(--text-xs); white-space: pre-wrap; overflow-wrap: break-word;"></pre>
