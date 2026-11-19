@@ -30,9 +30,42 @@
   <link rel="icon" type="image/png" sizes="512x512" href="./logo.png">
   <link rel="apple-touch-icon" href="./logo.png">
 
+  <link rel="preconnect" href="https://api.zapnoty.com" crossorigin>
+  <link rel="preload" as="image" href="./hero-cover.jpg?v=20261105" fetchpriority="high">
   <link rel="stylesheet" href="./tokens.css">
   <link rel="stylesheet" href="./styles.css">
   <link rel="stylesheet" href="./legal.css">
+  <style>
+    /* Фирменный прелоадер «клещ и пар»: показывается до загрузки стилей и скриптов */
+    .tp-loader{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 50% 38%,#fffdf8 0%,#FAF7F2 55%,#f4ede2 100%);overflow:hidden;transition:opacity .5s ease,visibility .5s ease;}
+    .tp-loader.is-done{opacity:0;visibility:hidden;pointer-events:none;}
+    .tp-glow{position:absolute;border-radius:50%;filter:blur(60px);opacity:.5;animation:tp-drift 9s ease-in-out infinite alternate;}
+    .tp-glow-a{width:420px;height:420px;left:8%;top:12%;background:#f0e2c8;}
+    .tp-glow-b{width:360px;height:360px;right:6%;bottom:10%;background:#e9dcc9;animation-delay:-4s;}
+    @keyframes tp-drift{from{transform:translate3d(0,0,0) scale(1)}to{transform:translate3d(40px,26px,0) scale(1.12)}}
+    .tp-stage{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;}
+    .tp-svg{width:min(300px,64vw);height:auto;overflow:visible;}
+    .tp-steam{stroke:#b08d57;stroke-width:2.6;fill:none;stroke-linecap:round;opacity:0;transform-box:fill-box;transform-origin:center;animation:tp-steam 2.6s ease-out infinite;}
+    .tp-steam.s2{animation-delay:.4s;}
+    .tp-steam.s3{animation-delay:.8s;}
+    @keyframes tp-steam{0%{opacity:0;transform:translateY(8px)}30%{opacity:.8}100%{opacity:0;transform:translateY(-14px)}}
+    .tp-cloche{transform-box:view-box;transform-origin:100px 110px;animation:tp-lift 2.6s cubic-bezier(.4,0,.2,1) infinite;}
+    @keyframes tp-lift{0%,100%{transform:translateY(0) rotate(0deg)}45%{transform:translateY(-12px) rotate(-2deg)}60%{transform:translateY(-12px) rotate(2deg)}}
+    .tp-shine{animation:tp-shine 2.6s ease-in-out infinite;}
+    @keyframes tp-shine{0%,100%{opacity:.15}50%{opacity:.7}}
+    .tp-p{opacity:0;transform-box:fill-box;transform-origin:center;animation:tp-rise 3s ease-in infinite;}
+    .tp-p.p2{animation-delay:1s;}
+    .tp-p.p3{animation-delay:2s;}
+    @keyframes tp-rise{0%{opacity:0;transform:translateY(0)}20%{opacity:.9}100%{opacity:0;transform:translateY(-70px)}}
+    .tp-brand{font-family:Georgia,'Palatino Linotype',serif;font-size:clamp(1.5rem,5vw,2rem);letter-spacing:.22em;text-transform:uppercase;background:linear-gradient(100deg,#5f463c 30%,#c9a06a 50%,#5f463c 70%);background-size:220% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#5f463c;animation:tp-shimmer 3.2s linear infinite;}
+    @keyframes tp-shimmer{from{background-position:120% 0}to{background-position:-120% 0}}
+    .tp-note{font-size:.9rem;color:#7a6a58;letter-spacing:.08em;animation:tp-pulse 2.2s ease-in-out infinite;}
+    @keyframes tp-pulse{0%,100%{opacity:.55}50%{opacity:1}}
+    .tp-run{width:min(220px,52vw);height:2px;border-radius:2px;background:#e8dfd7;overflow:hidden;margin-top:10px;}
+    .tp-run span{display:block;width:40%;height:100%;border-radius:2px;background:linear-gradient(90deg,transparent,#98794a,transparent);animation:tp-run 1.6s ease-in-out infinite;}
+    @keyframes tp-run{from{transform:translateX(-110%)}to{transform:translateX(310%)}}
+    @media (prefers-reduced-motion:reduce){.tp-loader *{animation:none !important;}}
+  </style>
 
   <script type="application/ld+json">
   {
@@ -477,6 +510,35 @@
   </style>
 </head>
 <body>
+  <div id="tp-loader" class="tp-loader" role="status" aria-label="Загрузка сайта ТонПлат">
+    <div class="tp-glow tp-glow-a"></div>
+    <div class="tp-glow tp-glow-b"></div>
+    <div class="tp-stage">
+      <svg class="tp-svg" viewBox="0 0 200 160" aria-hidden="true">
+        <defs>
+          <linearGradient id="tpGold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#c9a06a"/><stop offset=".5" stop-color="#98794a"/><stop offset="1" stop-color="#c9a06a"/>
+          </linearGradient>
+        </defs>
+        <path class="tp-steam s1" d="M84 52c-6-8 6-12 0-20"/>
+        <path class="tp-steam s2" d="M100 48c-6-8 6-12 0-20"/>
+        <path class="tp-steam s3" d="M116 52c-6-8 6-12 0-20"/>
+        <g class="tp-cloche">
+          <circle cx="100" cy="58" r="6" fill="none" stroke="url(#tpGold)" stroke-width="3"/>
+          <path d="M52 108c0-27 21-44 48-44s48 17 48 44" fill="none" stroke="url(#tpGold)" stroke-width="3.4" stroke-linecap="round"/>
+          <path class="tp-shine" d="M64 96c4-14 14-24 26-28" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
+        </g>
+        <rect x="40" y="110" width="120" height="7" rx="3.5" fill="url(#tpGold)"/>
+        <ellipse cx="100" cy="126" rx="58" ry="6" fill="#e8dfd7"/>
+        <circle class="tp-p p1" cx="60" cy="120" r="2.2" fill="#c9a06a"/>
+        <circle class="tp-p p2" cx="140" cy="118" r="1.8" fill="#b08d57"/>
+        <circle class="tp-p p3" cx="100" cy="124" r="1.5" fill="#c9a06a"/>
+      </svg>
+      <div class="tp-brand">ТонПлат</div>
+      <div class="tp-note">Накрываем стол…</div>
+      <div class="tp-run"><span></span></div>
+    </div>
+  </div>
   <a class="skip-link" href="#main-content">Перейти к содержимому</a>
 
   <div id="live-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
@@ -534,7 +596,7 @@
          1. HERO SECTION — Modern Airy Pastel Catering Website Hero
          ================================================================== -->
     <section id="top" class="hero-full" aria-label="ТонПлат — кейтеринг в Самаре">
-      <img class="hero-full-img" src="./hero-cover.jpg?v=20261105" alt="" fetchpriority="high">
+      <img class="hero-full-img" src="./hero-cover.jpg?v=20261105" alt="" fetchpriority="high" decoding="async">
       <div class="hero-full-overlay"></div>
       <div class="hero-particles" aria-hidden="true"></div>
       <div class="hero-full-center">
@@ -847,6 +909,7 @@
                 <input id="footer-consent" type="checkbox" required>
                 <span>Даю <a href="./consent.html" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a> для ответа на запрос. Подробнее — в <a href="./privacy.html" target="_blank" rel="noopener noreferrer">политике конфиденциальности</a>.</span>
               </label>
+              <input type="text" id="lead-honeypot" name="*hp*7a5c652159" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;left:-9999px;opacity:0;">
               <p class="privacy-form-note">Нажимая «Отправить», вы даёте согласие на обработку указанных данных для оформления заказа. <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Подробнее об обработке данных</a>.</p>
               <p id="footer-error" class="field-error" role="alert" hidden></p>
 
