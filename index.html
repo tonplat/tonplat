@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#FAF7F2">
   <meta name="referrer" content="no-referrer">
   <!-- Защита от сторонних скриптов, фреймов и несанкционированных запросов. На GitHub Pages — через meta. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-53BoqymNW6kuO5QvBJBqekUzTCDK+zrg67n62yaqyjk=' 'sha256-+6vu+y30nLeKMWe7y2jq9BVGKIfIzkdNMhpo/TD6BlI=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-TH/tsdP9jnEGcgch6J8VDQhtdc2DrtLBSBUN6upTV0M='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-/7xNSgzLMBeulfC+3SIW22m787U7RgifsfiF1qqalo4=' 'sha256-+6vu+y30nLeKMWe7y2jq9BVGKIfIzkdNMhpo/TD6BlI=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-TH/tsdP9jnEGcgch6J8VDQhtdc2DrtLBSBUN6upTV0M='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
@@ -3010,7 +3010,7 @@ body.tonplat-order-open .site-header { display: none !important; }
             </div>
             <div class="venue-info">
               <h3>Пространство для 15–20 гостей</h3>
-              <p>Уютное каменное помещение с диванчиком, караоке, столами и стульями. Подойдёт для мастер-классов, дней рождений, девичников и тёплых дружеских встреч.</p>
+              <p>Камерное пространство с диванчиком, караоке, столами и стульями. Подойдёт для мастер-классов, дней рождений, девичников и тёплых дружеских встреч.</p>
               <p class="venue-price"><strong>1 400 ₽/час</strong></p>
               <p class="venue-note">Дополнительно: сервировка, посуда и наши закуски.</p>
             </div>
@@ -3070,7 +3070,7 @@ body.tonplat-order-open .site-header { display: none !important; }
         <p style="max-width: 72ch; margin: 0 0 14px; font-size: var(--text-base); color: var(--color-text-secondary);">
           Работаем без минимальной суммы заказа, оплата — после получения. Самовывоз с кухни: 443099, г. Самара,
           ул. Комсомольская, 29; доставка по Самаре и выезд в Самарскую область. Для встреч, мастер-классов и
-          девичников есть собственное каменное помещение на 15–20 гостей — 1 400 ₽/час с сервировкой, посудой и
+          девичников есть собственное камерное пространство на 15–20 гостей — 1 400 ₽/час с сервировкой, посудой и
           закусками; корпоративным клиентам возможна отсрочка платежа. Юридическим лицам — договор, счёт, акты и
           обмен через ЭДО СБИС.
         </p>
@@ -3401,11 +3401,20 @@ window.TONPLAT_CONFIG = {
   responsePromise: "Ответим после получения заявки",
   seasonNote: "Готовим с любовью · Самара и область",
 
-  // В кабинете Zapnoty: Формы → Создать → разрешённые домены → маршрут получателя MAX.
-  // Разрешённые origin формы: https://тонплат.рф (в punycode: см. siteUrlPunycode) и служебный домен GitHub Pages.
-  // Вставьте сюда только публичный form_id в формате UUID (8-4-4-4-12 hex). НИКОГДА не вставляйте API-ключ zn_... .
+  // ПОДКЛЮЧЕНИЕ ЗАЯВОК В MAX (Zapnoty), 4 шага:
+  // 1) Кабинет Zapnoty (app.zapnoty.ru) → раздел каналов Telegram/Max: откройте выданную
+  //    дип-ссылку бота Zapnoty в мессенджере MAX и нажмите «Начать» — ваш аккаунт MAX
+  //    привяжется как получатель (developer/subscriber). Свой MAX-бот и токен не нужны.
+  // 2) Формы → Создать форму. В allowed_origins укажите без путей:
+  //    https://тонплат.рф , https://xn--80avfdgpf.xn--p1ai и на переходный период
+  //    https://ch1lov1c.github.io — иначе origin-check отклонит запрос.
+  // 3) В маршрутах формы добавьте доставку в Max на привязанный аккаунт (можно добавить
+  //    email и до 40 маршрутов суммарно). Скопируйте публичный form_id — это UUID.
+  // 4) Вставьте UUID ниже в formId (единственное место в коде). API-ключ zn_... и токен
+  //    MAX-бота в сайт НЕ вставляются: публичный эндпоинт формы работает без ключей,
+  //    а доставка в MAX идёт на стороне Zapnoty.
   zapnoty: {
-    formId: "", // ОБЯЗАТЕЛЬНО: UUID формы Zapnoty, например 123e4567-e89b-42d3-a456-426614174000
+    formId: "e07d9ea7-c654-4bff-a398-1a8b4dbbd119", // UUID формы Zapnoty из кабинета (app.zapnoty.ru)
     endpointBase: "https://api.zapnoty.com/f/",
   },
 
