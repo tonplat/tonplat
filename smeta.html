@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Смета — ТонПлат, Самара</title>
+<style>
+  :root { --ink:#3d2f26; --muted:#7a6a58; --gold:#98794a; --line:#e4d9c8; --bg:#faf7f2; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 18px 60px; }
+  .head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; border-bottom: 2px solid var(--gold); padding-bottom: 14px; }
+  .head h1 { margin: 0; font: 700 22px Georgia, serif; }
+  .head .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .meta { text-align: right; font-size: 13px; color: var(--muted); }
+  .meta b { color: var(--ink); font-size: 15px; }
+  .party { margin: 14px 0; font-size: 13.5px; }
+  .party b { display: block; margin-bottom: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 8px; background: #fff; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; font-size: 14px; vertical-align: top; }
+  th { background: #f3ece1; font-weight: 700; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  td.c { text-align: center; }
+  .total { text-align: right; font-weight: 700; font-size: 16px; margin: 10px 0 4px; }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 14px; }
+  .sign { margin-top: 26px; font-size: 14px; }
+  .bar { position: sticky; top: 0; background: rgba(250,247,242,.95); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 10px 0; margin-bottom: 18px; }
+  .bar .in { max-width: 860px; margin: 0 auto; padding: 0 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .bar button { border: 1px solid var(--gold); background: #fff; color: var(--ink); border-radius: 10px; padding: 9px 14px; font-size: 14px; cursor: pointer; }
+  .bar button.primary { background: var(--gold); color: #fff; border-color: var(--gold); }
+  .empty { padding: 40px 0; color: var(--muted); }
+  @media print {
+    .bar { display: none; }
+    body { background: #fff; }
+    .wrap { padding: 0; max-width: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="in">
+      <button class="primary" id="b-print" type="button">Печать / PDF</button>
+      <button id="b-docx" type="button">Скачать DOCX</button>
+      <button id="b-copy" type="button">Скопировать ссылку</button>
+    </div>
+  </div>
+  <div class="wrap" id="sheet"></div>
+
+<script src="./config.js"></script>
+<script src="./menu-data.js"></script>
+<script>
+(function () {
+  "use strict";
+  var CFGw = (typeof CFG !== "undefined") ? CFG : {};
+  var items = [];
+  try { var D = window.TONPLAT_DATA; items = (D && D.items) ? D.items : []; } catch (e) {}
+  var BY_ID = {};
+  items.forEach(function (it) { BY_ID[it.id] = it; });
+
+  function b64UrlToBytes(s) {
+    var b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    var bin = atob(b64);
+    var u8 = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8;
+  }
+  function decodePayload() {
+    var h = location.hash.replace(/^#/, "");
+    if (!h) return null;
+    try {
+      var u8 = b64UrlToBytes(h);
+      var bin = "";
+      for (var i = 0; i < u8.length; i++) bin += String.fromCharCode(u8[i]);
+      return JSON.parse(decodeURIComponent(escape(bin)));
+    } catch (e) { return null; }
+  }
+  function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function money(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " ₽"; }
+
+  var PL = decodePayload();
+  var sheet = document.getElementById("sheet");
+
+  if (!PL || !PL.i || !PL.i.length) {
+    sheet.innerHTML = '<div class="empty">Данные сметы не переданы в ссылке. Откройте ссылку из заявки или письма целиком (с символом # и кодом после него).</div>';
+  } else {
+    var rowsHtml = "", totalPieces = 0, totalSum = 0;
+    PL.i.forEach(function (r, idx) {
+      var it = BY_ID[r[0]] || { name: "Позиция " + r[0], price: 0 };
+      var qty = r[1] || 1;
+      var note = r[2] ? " <em>(" + esc(r[2]) + ")</em>" : "";
+      var sum = qty * it.price;
+      totalPieces += qty; totalSum += sum;
+      rowsHtml += "<tr><td class='c'>" + (idx + 1) + "</td><td>" + esc(it.name) + note + "</td><td class='num'>" + qty + " шт.</td><td class='num'>" + money(it.price) + "</td><td class='num'>" + money(sum) + "</td></tr>";
+    });
+    var flags = [];
+    if (PL.h) flags.push("100% Халяль (с фото упаковок)");
+    if (PL.b) flags.push("Счёт и закрывающие документы для ООО/ИП");
+    sheet.innerHTML =
+      '<div class="head"><div><h1>ТонПлат — смета вашего стола</h1>' +
+      '<div class="sub">' + esc(CFGw.address || "г. Самара, ул. Комсомольская, 29") + ' · тел. ' + esc(CFGw.phoneDisplay || "+7 (927) 605-84-88") + ' · ' + esc(CFGw.siteUrl || "https://тонплат.рф/") + '</div></div>' +
+      '<div class="meta"><b>Смета ' + esc(PL.n || "") + '</b><br>от ' + esc(PL.d || "") + '</div></div>' +
+      '<div class="party"><b>Исполнитель</b>' + esc(CFGw.legalFull || "ООО «Тон Плат»") + '; ИНН ' + esc(CFGw.inn || "") + ', КПП ' + esc(CFGw.kpp || "") + ', ОГРН ' + esc(CFGw.ogrn || "") + '; УСН 6%.</div>' +
+      '<div class="party"><b>Заказчик</b>' + esc(PL.c || "—") + (PL.p ? ", тел. " + esc(PL.p) : "") + (PL.tg ? ", Telegram: " + esc(PL.tg) : "") + '</div>' +
+      '<div class="party"><b>Повод</b>' + esc(PL.o || "") + (PL.g ? "; гостей: " + esc(PL.g) + " чел." : "") + (flags.length ? "<br>Условия: " + esc(flags.join("; ")) : "") + '</div>' +
+      (PL.x ? '<div class="party"><b>Примечания</b>' + esc(PL.x) + '</div>' : "") +
+      '<table><thead><tr><th class="c">№</th><th>Наименование</th><th class="num">Кол-во</th><th class="num">Цена</th><th class="num">Сумма</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>' +
+      '<div class="total">Итого: ' + PL.i.length + ' поз., ' + totalPieces + ' шт. на сумму ' + money(totalSum) + '</div>' +
+      '<div class="note">НДС не облагается (УСН). Оплата после получения; без минимальной суммы заказа. Смета сформирована на сайте ' + esc(CFGw.siteUrl || "https://тонплат.рф/") + ' ' + esc(PL.d || "") + '. Цены действительны на дату формирования.</div>' +
+      '<div class="sign">Подпись исполнителя: ______ / ' + esc(CFGw.director || "Вардалахос О. Г.") + ' /</div>';
+    sheet.dataset.total = totalSum;
+    sheet.dataset.pieces = totalPieces;
+  }
+
+  document.getElementById("b-print").addEventListener("click", function () { window.print(); });
+  document.getElementById("b-copy").addEventListener("click", function () {
+    var url = location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url);
+    else { var ta = document.createElement("textarea"); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+    this.textContent = "Ссылка скопирована";
+  });
+
+  /* ---- DOCX без библиотек: ZIP(store) + WordprocessingML ---- */
+  function zipStoreSync(files) {
+    var enc = new TextEncoder();
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    function crc32(u8) { var cc = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) cc = t[(cc ^ u8[i]) & 0xFF] ^ (cc >>> 8); return (cc ^ 0xFFFFFFFF) >>> 0; }
+    var d = new Date();
+    var dosT = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+    var dosD = (((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate()) & 0xFFFF;
+    var parts = [], central = [], offset = 0;
+    files.forEach(function (f) {
+      var nameU8 = enc.encode(f.name), data = f.data, crc = crc32(data);
+      var lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+      lh.setUint16(10, dosT, true); lh.setUint16(12, dosD, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true);
+      lh.setUint16(26, nameU8.length, true);
+      parts.push(new Uint8Array(lh.buffer), nameU8, data);
+      var ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint16(12, dosT, true); ch.setUint16(14, dosD, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true);
+      ch.setUint16(28, nameU8.length, true); ch.setUint32(42, offset, true);
+      central.push(new Uint8Array(ch.buffer), nameU8);
+      offset += 30 + nameU8.length + data.length;
+    });
+    var centralSize = central.reduce(function (s, u) { return s + u.length; }, 0);
+    var eo = new DataView(new ArrayBuffer(22));
+    eo.setUint32(0, 0x06054b50, true);
+    eo.setUint16(8, files.length, true); eo.setUint16(10, files.length, true);
+    eo.setUint32(12, centralSize, true); eo.setUint32(16, offset, true);
+    var all = parts.concat(central, [new Uint8Array(eo.buffer)]);
+    var out = new Uint8Array(offset + centralSize + 22), pos = 0;
+    all.forEach(function (u) { out.set(u, pos); pos += u.length; });
+    return out;
+  }
+  function xesc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+  document.getElementById("b-docx").addEventListener("click", function () {
+    if (!PL || !PL.i || !PL.i.length) return;
+    var W = [700, 4538, 1300, 1500, 1600];
+    function P(txt, o) {
+      o = o || {};
+      return '<w:p><w:pPr>' + (o.align ? '<w:jc w:val="' + o.align + '"/>' : '') + '<w:spacing w:after="' + (o.after == null ? 60 : o.after) + '"/></w:pPr><w:r><w:rPr>' + (o.bold ? '<w:b/>' : '') + '<w:sz w:val="' + (o.sz || 21) + '"/></w:rPr><w:t xml:space="preserve">' + xesc(txt) + '</w:t></w:r></w:p>';
+    }
+    function cell(txt, w, bold) { return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/></w:tcPr>' + P(txt, { bold: bold, sz: 19, after: 20 }) + '</w:tc>'; }
+    function row(cells) { return '<w:tr>' + cells.join("") + '</w:tr>'; }
+    var tbl = '<w:tbl><w:tblPr><w:tblW w:w="9638" w:type="dxa"/><w:tblBorders>' +
+      ["top", "left", "bottom", "right", "insideH", "insideV"].map(function (s) { return '<w:' + s + ' w:val="single" w:sz="4" w:space="0" w:color="8A7A6B"/>'; }).join("") +
+      '</w:tblBorders></w:tblPr><w:tblGrid>' + W.map(function (w) { return '<w:gridCol w:w="' + w + '"/>'; }).join("") + '</w:tblGrid>';
+    tbl += row([cell("№", W[0], true), cell("Наименование", W[1], true), cell("Кол-во", W[2], true), cell("Цена", W[3], true), cell("Сумма", W[4], true)]);
+    var totalPieces = 0, totalSum = 0;
+    PL.i.forEach(function (r, idx) {
+      var it = BY_ID[r[0]] || { name: "Позиция " + r[0], price: 0 };
+      var qty = r[1] || 1, sum = qty * it.price;
+      totalPieces += qty; totalSum += sum;
+      tbl += row([cell(String(idx + 1), W[0]), cell(it.name + (r[2] ? " (" + r[2] + ")" : ""), W[1]), cell(qty + " шт.", W[2]), cell(money(it.price), W[3]), cell(money(sum), W[4])]);
+    });
+    tbl += row([cell("", W[0], true), cell("Итого", W[1], true), cell(totalPieces + " шт.", W[2], true), cell("", W[3], true), cell(money(totalSum), W[4], true)]);
+    tbl += '</w:tbl>';
+    var body = [
+      P("СМЕТА " + (PL.n || ""), { bold: true, sz: 30, align: "center", after: 40 }),
+      P("от " + (PL.d || "") + " · г. Самара", { sz: 20, align: "center", after: 160 }),
+      P("Исполнитель: " + (CFGw.legalFull || "") + "; ИНН " + (CFGw.inn || "") + ", КПП " + (CFGw.kpp || "") + ", ОГРН " + (CFGw.ogrn || "") + "; УСН 6%.", { sz: 19 }),
+      P("Адрес: " + (CFGw.address || "") + "; тел. " + (CFGw.phoneDisplay || "") + "; сайт " + (CFGw.siteUrl || ""), { sz: 19, after: 120 }),
+      P("Заказчик: " + (PL.c || "—") + (PL.p ? ", тел. " + PL.p : "") + (PL.tg ? ", Telegram: " + PL.tg : ""), { sz: 19 }),
+      P("Повод: " + (PL.o || "") + (PL.g ? "; гостей: " + PL.g + " чел." : ""), { sz: 19, after: 120 }),
+      tbl,
+      P("", { after: 40 }),
+      P("Итого: " + PL.i.length + " поз., " + totalPieces + " шт. на сумму " + money(totalSum) + ". НДС не облагается (УСН).", { bold: true }),
+      PL.x ? P("Примечания заказчика: " + PL.x, { sz: 19 }) : "",
+      P("Оплата после получения; без минимальной суммы заказа.", { sz: 18, after: 200 }),
+      P("Подпись исполнителя: ______ / " + (CFGw.director || "") + " /", { sz: 19 })
+    ].join("");
+    var documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body +
+      '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>';
+    var contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+    var enc = new TextEncoder();
+    var zip = zipStoreSync([
+      { name: "[Content_Types].xml", data: enc.encode(contentTypes) },
+      { name: "_rels/.rels", data: enc.encode(rels) },
+      { name: "word/document.xml", data: enc.encode(documentXml) }
+    ]);
+    var blob = new Blob([zip], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "Смета-ТонПлат-" + (PL.n || "") + ".docx";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  });
+})();
+</script>
+</body>
+</html>

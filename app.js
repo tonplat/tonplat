@@ -684,13 +684,38 @@
     return ((a && a.value.trim()) || (b && b.value.trim()) || "");
   }
 
-  /* В заявку уходит формальная смета: номер, дата, реквизиты, построчный состав, итог. */
+  /* Ссылка на печатную страницу сметы: данные корзины упакованы в base64url после #.
+     Имена и цены страница подтягивает из menu-data.js — ссылка остаётся короткой. */
+  function buildEstimateLink(name, phone, extraNotes) {
+    const meta = buildEstimateMeta();
+    const ids = Object.keys(state.cart).map(Number);
+    const items = [];
+    ids.forEach((id) => {
+      const e = state.cart[id];
+      if (!e) return;
+      items.push(e.note ? [id, e.qty, e.note] : [id, e.qty]);
+    });
+    if (!items.length) return "";
+    const payload = {
+      n: meta.number, d: meta.dateRu,
+      c: name || "", p: phone || "", tg: readTelegramField(),
+      o: state.occasion, g: state.guests,
+      h: state.halal ? 1 : 0, b: state.b2b ? 1 : 0,
+      x: extraNotes || "", i: items,
+    };
+    const json = JSON.stringify(payload);
+    const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const root = (CFG && CFG.siteUrl ? String(CFG.siteUrl).replace(/\/+$/, "") : location.origin);
+    return root + "/smeta.html#" + b64;
+  }
+
+  /* В заявку уходит компактная смета: сводка + ссылка на печатную страницу.
+     Полная таблица в сообщении остаётся только для коротких корзин (<=8 поз.),
+     чтобы уведомление в MAX не превышало лимит 4000 символов. */
   function buildOrderMessage(name, phone, extraNotes) {
     const meta = buildEstimateMeta();
     const lines = [
       `СМЕТА ${meta.number} от ${meta.dateRu} — ТонПлат (Самара)`,
-      `Исполнитель: ${CFG.legalShort}, ИНН ${CFG.inn}, КПП ${CFG.kpp}, ОГРН ${CFG.ogrn}`,
-      `${CFG.address} · тел. ${CFG.phoneDisplay} · ${CFG.siteUrl}`,
       `Заказчик: ${name}, ${phone}${readTelegramField() ? "; Telegram: " + readTelegramField() : ""}`,
       `Повод: ${state.occasion}; гостей: ${state.guests} чел.`,
     ];
@@ -703,23 +728,18 @@
     const cartIds = Object.keys(state.cart).map(Number);
     if (cartIds.length > 0) {
       const { totalPieces, totalSum } = getCartTotals();
-      lines.push("----------------------------------------");
-      const MAX_ROWS = 40;
-      let shownSum = 0;
-      cartIds.slice(0, MAX_ROWS).forEach((id, idx) => {
-        const item = ITEMS_BY_ID.get(id);
-        const entry = state.cart[id];
-        if (!item || !entry) return;
-        const noteStr = entry.note ? ` [${entry.note}]` : "";
-        const sum = entry.qty * item.price;
-        shownSum += sum;
-        lines.push(`${idx + 1}. ${item.name}${noteStr} — ${entry.qty} шт. × ${item.price} ₽ = ${sum} ₽`);
-      });
-      if (cartIds.length > MAX_ROWS) {
-        lines.push(`… и ещё ${cartIds.length - MAX_ROWS} поз. на ${formatMoney(totalSum - shownSum)}`);
+      lines.push(`Позиций: ${cartIds.length}, шт.: ${totalPieces}, итог: ${formatMoney(totalSum)}`);
+      if (cartIds.length <= 8) {
+        cartIds.forEach((id, idx) => {
+          const item = ITEMS_BY_ID.get(id);
+          const entry = state.cart[id];
+          if (!item || !entry) return;
+          const noteStr = entry.note ? ` [${entry.note}]` : "";
+          lines.push(`${idx + 1}. ${item.name}${noteStr} — ${entry.qty} шт. × ${item.price} ₽ = ${entry.qty * item.price} ₽`);
+        });
       }
-      lines.push("----------------------------------------");
-      lines.push(`ИТОГО: ${cartIds.length} поз., ${totalPieces} шт. на сумму ${formatMoney(totalSum)}`);
+      const link = buildEstimateLink(name, phone, extraNotes);
+      if (link) lines.push(`Смета (печать, DOCX, все позиции): ${link}`);
     } else {
       lines.push("", "Пожалуйста, предложите 2–3 варианта меню под указанное число гостей.");
     }
@@ -767,18 +787,9 @@
     // «Минимальное время заполнения (сек)» = 3. Без поля _submit_time заявки
     // из JS-формы помечаются спамом с причиной «без времени заполнения».
     try { payload._submit_time = String(Math.round(performance.now())); } catch (_) {}
-    // Смета файлом: готовый DOCX (base64) едет вместе с заявкой — workflow
-    // «Zapnoty → MAX» прикладывает его к сообщению как документ (см. README).
-    try {
-      const docxDoc = buildEstimateDocxBytes();
-      if (docxDoc) {
-        const b64 = u8ToBase64(docxDoc.bytes);
-        if (b64.length <= 400000) {
-          payload.docx_name = docxDoc.name;
-          payload.docx_b64 = b64;
-        }
-      }
-    } catch (_) {}
+    // ВАЖНО (ред. 20.11.2026): base64-файл в payload НЕ кладём. Zapnoty обрезает
+    // строковые поля до 5000 символов, а уведомление в MAX лимитировано 4000 —
+    // большое поле роняло доставку. DOCX для MAX собирает workflow из текста сметы.
     sendingLead = true;
     errorEl.hidden = true;
     const originalText = submitButton.textContent;
@@ -1069,13 +1080,6 @@
       { name: "word/document.xml", data: enc.encode(documentXml) },
     ]);
     return { bytes: zip, name: "Смета-ТонПлат-" + meta.number + ".docx" };
-  }
-
-  function u8ToBase64(u8) {
-    let bin = "";
-    const CH = 0x8000;
-    for (let i = 0; i < u8.length; i += CH) bin += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
-    return btoa(bin);
   }
 
   function downloadEstimateDocx() {
