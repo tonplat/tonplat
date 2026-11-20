@@ -41,6 +41,7 @@ window.TONPLAT_CONFIG = {
   zapnoty: {
     formId: "e07d9ea7-c654-4bff-a398-1a8b4dbbd119", // UUID формы Zapnoty из кабинета (app.zapnoty.ru)
     endpointBase: "https://api.zapnoty.com/f/",
+    honeypot: "_hp_7a5c652159", // honeypot-ловушка формы (точное имя из кабинета Zapnoty): скрытое поле, отправляется пустым
   },
 
   pricing: {

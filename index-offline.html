@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#FAF7F2">
   <meta name="referrer" content="no-referrer">
   <!-- Защита от сторонних скриптов, фреймов и несанкционированных запросов. На GitHub Pages — через meta. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-cWaIXBSeBEnJrbWm9RwqK6lubOo5bRq9ajf6faSzQZw=' 'sha256-KO5HZUHqSi8Sv25MIiGlfTSZNLSOjXygLRkLM3/wPlA=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-eNYOpJCNT5NVG3lwYvPqanmhAxVdLNDt8knuDujQBc4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'sha256-Jo6kE4V0ORJDwM+NfkQffM7rQ6d5H7wL6CL6l1MNjNM=' 'sha256-KO5HZUHqSi8Sv25MIiGlfTSZNLSOjXygLRkLM3/wPlA=' 'sha256-xySx4EGgfjyvltjI2FqCAuoPCCnh3+sW7mUHzLq4BTM=' 'sha256-eNYOpJCNT5NVG3lwYvPqanmhAxVdLNDt8knuDujQBc4='; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
@@ -3219,7 +3219,7 @@ body.tonplat-order-open .site-header { display: none !important; }
                 <input id="footer-consent" type="checkbox" required>
                 <span>Даю <a href="./consent.html" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a> для ответа на запрос. Подробнее — в <a href="./privacy.html" target="_blank" rel="noopener noreferrer">политике конфиденциальности</a>.</span>
               </label>
-              <input type="text" id="lead-honeypot" name="*hp*7a5c652159" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;left:-9999px;opacity:0;">
+              <input type="text" id="lead-honeypot" name="_hp_7a5c652159" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;left:-9999px;opacity:0;">
               <p class="privacy-form-note">Нажимая «Отправить», вы даёте согласие на обработку указанных данных для оформления заказа. <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Подробнее об обработке данных</a>.</p>
               <p id="footer-error" class="field-error" role="alert" hidden></p>
 
@@ -3491,7 +3491,7 @@ window.TONPLAT_CONFIG = {
   zapnoty: {
     formId: "e07d9ea7-c654-4bff-a398-1a8b4dbbd119", // UUID формы Zapnoty из кабинета (app.zapnoty.ru)
     endpointBase: "https://api.zapnoty.com/f/",
-    honeypot: "*hp*7a5c652159", // спап-ловушка формы: скрытое поле, отправляется пустым
+    honeypot: "_hp_7a5c652159", // honeypot-ловушка формы (точное имя из кабинета Zapnoty): скрытое поле, отправляется пустым
   },
 
   pricing: {
