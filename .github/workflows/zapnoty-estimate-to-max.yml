@@ -1,0 +1,247 @@
+# ============================================================================
+# ТонПлат: смета-файл в MAX (ред. 20.11.2026, версия 2)
+# ----------------------------------------------------------------------------
+# Сайт шлёт в Zapnoty ЧИСТУЮ текстовую смету (номер, реквизиты, построчный
+# состав, итог) — она проходит в MAX через маршрут «Всегда» (лимит 4000 симв).
+# Этот workflow раз в 5 минут забирает новые заявки, ВОССТАНАВЛИВАЕТ таблицу
+# из текста сметы, собирает DOCX (python-docx), загружает его в приватное
+# хранилище Zapnoty (POST /v1/agent/media) и отправляет подписчику в MAX
+# сообщение С ФАЙЛОМ: POST /v1/send, media {type: document, media_id}.
+#
+# Почему не base64 в заявке: Zapnoty обрезает строковые поля до 5000 символов,
+# а уведомление в MAX ограничено 4000 — большое поле роняло доставку.
+#
+# Установка (подробнее в README.md, раздел «Смета файлом в MAX»):
+#   1. Скопируйте файл в репозиторий сайта: .github/workflows/zapnoty-estimate-to-max.yml
+#   2. Секрет ZN_API_KEY: кабинет Zapnoty → «API и MCP» → создать ключ zn_live_…
+#   3. Секрет ZN_SUBSCRIBER_MAX: кабинет → «Подписчики» → deep-link MAX →
+#      открыть в MAX и нажать «Старт» → появится sub_… (или GET /v1/subscribers).
+#      Кто нажал «Старт» — тому и приходит файл. Для заказчика пусть нажмёт
+#      заказчик со своего MAX. Опционально ZN_SUBSCRIBER_MAX2 — второй получатель
+#      (например, ваш аккаунт для отладки): файл уйдёт обоим.
+#   4. Опционально ZN_AGENT_KEY (agtk_…), если загрузку медиа не примет ключ проекта.
+#   5. GitHub → Settings → Secrets and variables → Actions → добавить секреты.
+#   6. Actions → zapnoty-estimate-to-max → Run workflow (далее каждые 5 минут).
+# ============================================================================
+name: zapnoty-estimate-to-max
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Restore cursor
+        uses: actions/cache@v4
+        with:
+          path: cursor.json
+          key: zapnoty-cursor-${{ github.run_id }}
+          restore-keys: |
+            zapnoty-cursor-
+
+      - name: Install python-docx
+        run: pip install --quiet python-docx
+
+      - name: Build DOCX estimates and deliver to MAX
+        env:
+          ZN_KEY: ${{ secrets.ZN_API_KEY }}
+          ZN_AGENT_KEY: ${{ secrets.ZN_AGENT_KEY }}
+          SUB_ID: ${{ secrets.ZN_SUBSCRIBER_MAX }}
+          SUB_ID2: ${{ secrets.ZN_SUBSCRIBER_MAX2 }}
+          FORM_ID: e07d9ea7-c654-4bff-a398-1a8b4dbbd119
+        run: |
+          python3 - <<'PY'
+          import os, re, json, pathlib, uuid, urllib.request, urllib.error
+          from docx import Document
+          from docx.shared import Pt, Mm
+
+          ZN = os.environ["ZN_KEY"]
+          AGT = os.environ.get("ZN_AGENT_KEY") or ZN
+          SUB = os.environ["SUB_ID"]
+          FORM = os.environ["FORM_ID"]
+          API = "https://api.zapnoty.com"
+          DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+          LEGAL_FULL = "Общество с ограниченной ответственностью «Тон Плат»"
+          INN, KPP, OGRN = "6314049248", "631401001", "1226300038326"
+          ADDRESS = "г. Самара, ул. Комсомольская, 29"
+          PHONE = "+7 (927) 605-84-88"
+          SITE = "https://тонплат.рф/"
+          DIRECTOR = "Вардалахос Ольга Геннадьевна"
+
+          cur = pathlib.Path("cursor.json")
+          state = json.loads(cur.read_text()) if cur.exists() else {"seen": []}
+          seen = set(state["seen"])
+
+          def req(method, path, key, data=None, extra_headers=None):
+              headers = {"Authorization": "Bearer " + key}
+              if extra_headers:
+                  headers.update(extra_headers)
+              body = None
+              if data is not None:
+                  body = data if isinstance(data, bytes) else json.dumps(data).encode()
+                  if not extra_headers or "Content-Type" not in extra_headers:
+                      headers["Content-Type"] = "application/json"
+              r = urllib.request.Request(API + path, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(r, timeout=90) as resp:
+                      return resp.status, resp.read()
+              except urllib.error.HTTPError as e:
+                  return e.code, e.read()
+
+          if not SUB:
+              raise SystemExit("Нет ZN_SUBSCRIBER_MAX: добавьте subscriber_id (sub_…) в секреты.")
+          # Файл уходит каждому указанному подписчику: основной (заказчик)
+          # и опциональный второй (например, разработчик для отладки).
+          TARGETS = [s for s in (SUB, (os.environ.get("SUB_ID2") or "").strip()) if s]
+
+          st, raw = req("GET", f"/v1/forms/{FORM}/submissions?limit=25", ZN)
+          if st != 200:
+              raise SystemExit(f"Не удалось получить заявки: {st} {raw[:300]!r}")
+          payload = json.loads(raw)
+          items = payload.get("submissions") or payload.get("items") or payload.get("data") or []
+          if isinstance(items, dict):
+              items = items.get("items") or []
+
+          fresh = [it for it in items if (it.get("id")) and str(it["id"]) not in seen]
+          fresh.reverse()
+
+          ROW_RE = re.compile(r"^(\d+)\.\s+(.+?)\s+—\s+(\d+)\s+шт\.\s+×\s+([\d\s]+)₽?\s*=\s*([\d\s]+)₽?$")
+          META_RE = re.compile(r"^СМЕТА\s+(\S+)\s+от\s+([\d.]+)")
+          CUSTOMER_RE = re.compile(r"^Заказчик:\s+(.*)$")
+          OCCASION_RE = re.compile(r"^Повод:\s+(.*)$")
+          TOTAL_RE = re.compile(r"^ИТОГО:\s+(.*)$")
+
+          def build_docx(message, out_path):
+              num, date_ru, customer, occasion, total_line = "", "", "", "", ""
+              rows = []
+              for line in (message or "").splitlines():
+                  line = line.strip()
+                  m = META_RE.match(line)
+                  if m:
+                      num, date_ru = m.group(1), m.group(2)
+                      continue
+                  m = CUSTOMER_RE.match(line)
+                  if m:
+                      customer = m.group(1)
+                      continue
+                  m = OCCASION_RE.match(line)
+                  if m:
+                      occasion = m.group(1)
+                      continue
+                  m = TOTAL_RE.match(line)
+                  if m:
+                      total_line = m.group(1)
+                      continue
+                  m = ROW_RE.match(line)
+                  if m:
+                      rows.append((m.group(2), m.group(3) + " шт.", m.group(4).strip() + " ₽", m.group(5).strip() + " ₽"))
+              if not rows:
+                  return False
+              doc = Document()
+              st_par = doc.add_paragraph()
+              run = st_par.add_run(f"СМЕТА {num}")
+              run.bold = True
+              run.font.size = Pt(15)
+              st_par.alignment = 1
+              p = doc.add_paragraph(f"от {date_ru} · г. Самара")
+              p.alignment = 1
+              doc.add_paragraph(f"Исполнитель: {LEGAL_FULL}; ИНН {INN}, КПП {KPP}, ОГРН {OGRN}; УСН 6%.")
+              doc.add_paragraph(f"Адрес: {ADDRESS}; тел. {PHONE}; сайт {SITE}")
+              if customer:
+                  doc.add_paragraph(f"Заказчик: {customer}")
+              if occasion:
+                  doc.add_paragraph(f"Повод: {occasion}")
+              table = doc.add_table(rows=1, cols=4)
+              table.style = "Table Grid"
+              hdr = table.rows[0].cells
+              for c, t in zip(hdr, ("Наименование", "Кол-во", "Цена", "Сумма")):
+                  c.text = t
+                  for par in c.paragraphs:
+                      for r in par.runs:
+                          r.bold = True
+              for r_ in rows:
+                  cells = table.add_row().cells
+                  for c, t in zip(cells, r_):
+                      c.text = t
+              doc.add_paragraph("")
+              tp = doc.add_paragraph(f"Итого: {total_line}" if total_line else "Итого: см. таблицу")
+              for r in tp.runs:
+                  r.bold = True
+              doc.add_paragraph("НДС не облагается (УСН). Оплата после получения; без минимальной суммы заказа.")
+              doc.add_paragraph(f"Смета сформирована автоматически на сайте {SITE} {date_ru}.")
+              doc.add_paragraph(f"Подпись исполнителя: ______ / {DIRECTOR} /")
+              doc.save(out_path)
+              return True
+
+          def send_with_approval(body):
+              """/v1/send может ответить 202 grant_required: первое действие агента
+              одобряет человек (кнопка в MAX у подписчика или уведомление в кабинете).
+              Ждём одобрение до ~100 секунд и повторяем вызов; грант approved_full
+              пропускает все последующие отправки."""
+              st, raw = req("POST", "/v1/send", ZN, body)
+              if st == 202:
+                  rid = None
+                  try:
+                      rid = json.loads(raw).get("request_id")
+                  except Exception:
+                      rid = None
+                  if rid:
+                      for _ in range(4):
+                          stp, rawp = req("GET", f"/v1/agent/requests/{rid}?wait=25", ZN)
+                          pj = json.loads(rawp) if rawp else {}
+                          if pj.get("reason_code") in ("approved_full", "approved_once") or pj.get("status") == "approved":
+                              return req("POST", "/v1/send", ZN, body)
+                      return 202, raw
+              return st, raw
+
+          for it in fresh:
+              sid = str(it["id"])
+              fields = it.get("data") or it.get("fields") or it
+              msg = fields.get("message") or ""
+              tmp = pathlib.Path(f"smeta-{sid[:8]}.docx")
+              if not build_docx(msg, str(tmp)):
+                  print(f"{sid}: нет табличной сметы в сообщении — файл не формируем")
+                  seen.add(sid)
+                  continue
+              data = tmp.read_bytes()
+              media_id = None
+              keys = [ZN, AGT] if AGT != ZN else [ZN]
+              for key in keys:
+                  boundary = "----zapnoty" + uuid.uuid4().hex
+                  body = (
+                      f"--{boundary}\r\n"
+                      f'Content-Disposition: form-data; name="file"; filename="smeta-{sid[:8]}.docx"\r\n'
+                      f"Content-Type: {DOCX_MIME}\r\n\r\n"
+                  ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
+                  st2, raw2 = req("POST", "/v1/agent/media", key, body,
+                                  {"Content-Type": "multipart/form-data; boundary=" + boundary})
+                  if st2 == 200:
+                      media_id = json.loads(raw2).get("id")
+                      break
+                  print(f"upload fail key={key[:8]}… {st2} {raw2[:200]!r}")
+              if not media_id:
+                  print(f"{sid}: не удалось загрузить файл — пропускаем отправку, заявку не помечаем")
+                  continue
+              delivered = False
+              for target in TARGETS:
+                  body = {"subscriber_id": target, "text": msg[:3900], "media": {"type": "document", "media_id": media_id}}
+                  st3, raw3 = send_with_approval(body)
+                  print(f"send {sid} -> {target[:10]}…: {st3} {raw3[:200]!r}")
+                  delivered = delivered or st3 == 200
+              if delivered:
+                  seen.add(sid)
+              else:
+                  print(f"{sid}: доставка не подтверждена (ждёт одобрения?) — повторим в следующий запуск")
+              tmp.unlink(missing_ok=True)
+
+          state["seen"] = list(seen)[-500:]
+          cur.write_text(json.dumps(state))
+          print("done, processed:", len(fresh))
+          PY
