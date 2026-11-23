@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#FAF7F2">
   <meta name="referrer" content="no-referrer">
   <!-- Защита от сторонних скриптов, фреймов и несанкционированных запросов. На GitHub Pages — через meta. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src https://api.zapnoty.com; frame-src 'none'; form-action 'self'; upgrade-insecure-requests">
 
   <meta property="og:type" content="website">
   <meta property="og:locale" content="ru_RU">
@@ -31,10 +31,11 @@
   <link rel="apple-touch-icon" href="./logo.png">
 
   <link rel="preconnect" href="https://api.zapnoty.com" crossorigin>
-  <link rel="preload" as="image" href="./hero-cover.jpg?v=20261105" fetchpriority="high">
-  <link rel="stylesheet" href="./tokens.css?v=20261120">
-  <link rel="stylesheet" href="./styles.css?v=20261120">
-  <link rel="stylesheet" href="./legal.css?v=20261120">
+  <link rel="preload" as="image" href="./hero-table.png" fetchpriority="high">
+  <link rel="stylesheet" href="./tokens.css">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./legal.css">
+  <link rel="stylesheet" href="./hero-design.css?v=20261121-2">
   <style>
     /* Фирменный прелоадер «клещ и пар»: показывается до загрузки стилей и скриптов */
     .tp-loader{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 50% 38%,#fffdf8 0%,#FAF7F2 55%,#f4ede2 100%);overflow:hidden;transition:opacity .5s ease,visibility .5s ease;animation:tp-autoclose .45s ease 5s forwards;}
@@ -596,34 +597,19 @@
     <!-- ==================================================================
          1. HERO SECTION — Modern Airy Pastel Catering Website Hero
          ================================================================== -->
-    <section id="top" class="hero-full hero-v3" aria-label="ТонПлат — кейтеринг в Самаре">
-      <div class="hv-media" aria-hidden="true"><img src="./hero-cover.jpg?v=20261105" alt="" fetchpriority="high" decoding="async"></div>
-      <div class="hv-veil" aria-hidden="true"></div>
-      <div class="hv-grain" aria-hidden="true"></div>
-      <div class="hv-inner">
-        <p class="hv-overline">кейтеринг-студия · Самара</p>
-        <h1 class="hv-title">
-          <span class="hv-line"><span>Готовим и сервируем</span></span>
-          <span class="hv-line"><span>как <em>искусство</em></span></span>
-        </h1>
-        <p class="hv-sub">Фуршеты, банкеты и кофе-брейки под ключ: 108 блюд собственной кухни, выездной шеф и сервировка, которую хочется фотографировать.</p>
-        <div class="hv-cta">
-          <button class="hv-btn" id="hero-open-builder" type="button" aria-haspopup="dialog" aria-controls="table-drawer">Собрать стол</button>
-          <a class="hv-ghost" href="#menu">Смотреть меню</a>
+    <section id="top" class="tp-hero" aria-labelledby="tp-hero-title">
+      <div class="tp-hero-wrap">
+        <h1 class="tp-hero-title" id="tp-hero-title"><span>Ваше</span> <span>событие.</span></h1>
+        <div class="tp-hero-photo">
+          <img src="./hero-table.png" alt="Фуршетный стол с креветками в темпуре, тарталетками с икрой, рулетиками с ветчиной и брускеттами" fetchpriority="high">
         </div>
-        <div class="hv-strip" role="list">
-          <div role="listitem"><b>Фуршет</b><span>от 400 ₽ / чел</span></div>
-          <div role="listitem"><b>Кофе-брейк</b><span>от 550 ₽ / чел</span></div>
-          <div role="listitem"><b>Банкет</b><span>от 1 800 ₽ / чел</span></div>
-          <div role="listitem"><b>Пространство</b><span>1 400 ₽ / час</span></div>
+        <p class="tp-hero-statement"><span>Наш</span> <span>стол.</span></p>
+        <p class="tp-hero-subtitle">Фуршеты, банкеты и события в Самаре</p>
+        <div class="tp-hero-actions">
+          <button class="tp-hero-button" id="hero-open-builder" type="button" aria-haspopup="dialog" aria-controls="table-drawer" aria-expanded="false">Собрать на стол</button>
+          <a class="tp-hero-menu" href="#menu">Смотреть меню</a>
         </div>
-      </div>
-      <div class="hv-scroll" aria-hidden="true"><span></span>листайте</div>
-      <div class="hv-marquee" aria-hidden="true">
-        <div class="hv-track">
-          <span>фуршеты · банкеты · кофе-брейки · канапе · брускетты · тарталетки · рулетики · десерты ·&#160;</span>
-          <span>фуршеты · банкеты · кофе-брейки · канапе · брускетты · тарталетки · рулетики · десерты ·&#160;</span>
-        </div>
+        <p class="tp-hero-trust">Оплата после получения</p>
       </div>
     </section>
 
@@ -929,7 +915,7 @@
                 <span>Даю <a href="./consent.html" target="_blank" rel="noopener noreferrer">согласие на обработку персональных данных</a> для ответа на запрос. Подробнее — в <a href="./privacy.html" target="_blank" rel="noopener noreferrer">политике конфиденциальности</a>.</span>
               </label>
               <input type="text" id="lead-honeypot" name="_hp_7a5c652159" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;width:1px;height:1px;left:-9999px;opacity:0;">
-              <p class="privacy-form-note">Нажимая «Отправить», вы даёте согласие на обработку указанных данных для оформления заказа. <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Подробнее об обработке данных</a>.</p>
+              <p class="privacy-form-note">Отправляя заявку, вы подтверждаете, что поставили отдельную отметку о согласии на обработку персональных данных. <a href="./privacy.html" target="_blank" rel="noopener noreferrer">Подробнее об обработке данных</a>.</p>
               <p id="footer-error" class="field-error" role="alert" hidden></p>
 
               <button class="btn btn-primary" type="submit" style="width: 100%; margin-block-start: 4px;">
@@ -1156,9 +1142,9 @@
     </p>
   </section>
 
-  <script src="./config.js?v=20261120"></script>
-  <script src="./menu-data.js?v=20261120"></script>
-  <script src="./privacy.js?v=20261120"></script>
-  <script src="./app.js?v=20261120"></script>
+  <script src="./config.js"></script>
+  <script src="./menu-data.js"></script>
+  <script src="./privacy.js"></script>
+  <script src="./app.js?v=20261121-2"></script>
 </body>
 </html>

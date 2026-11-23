@@ -14,6 +14,8 @@
       if (done) return;
       done = true;
       loader.classList.add("is-done");
+      // Запускаем анимацию первого экрана после начала исчезновения прелоадера.
+      setTimeout(function () { document.documentElement.classList.add("tp-hero-ready"); }, 350);
       setTimeout(function () { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 600);
     };
     if (document.readyState === "complete") setTimeout(hide, 250);
@@ -509,6 +511,8 @@
     drawer.setAttribute("aria-hidden", "false");
     backdrop.classList.add("is-open");
     if (openBtn) openBtn.setAttribute("aria-expanded", "true");
+    const heroBtn = document.getElementById("hero-open-builder");
+    if (heroBtn) heroBtn.setAttribute("aria-expanded", "true");
     document.body.style.overflow = "hidden";
 
     const closeBtn = document.getElementById("close-table-btn");
@@ -527,6 +531,8 @@
     drawer.setAttribute("aria-hidden", "true");
     backdrop.classList.remove("is-open");
     if (openBtn) openBtn.setAttribute("aria-expanded", "false");
+    const heroBtn = document.getElementById("hero-open-builder");
+    if (heroBtn) heroBtn.setAttribute("aria-expanded", "false");
     document.body.style.overflow = "";
 
     if (restoreFocus && state.lastFocusBeforeDrawer && typeof state.lastFocusBeforeDrawer.focus === "function") {
@@ -775,7 +781,7 @@
     const payload = {
       name: name,
       phone: phone,
-      message: message + "\n\nСогласие на обработку ПД (ред. 08.11.2026): подтверждено отдельной отметкой на сайте.",
+      message: message + "\n\nСогласие на обработку ПД (ред. 21.11.2026, версия 2.1): пользователь подтвердил отдельной отметкой перед отправкой заявки.",
     };
     // Honeypot: скрытое поле-ловушка из кабинета Zapnoty, человек его не заполняет.
     const hpField = CFG.zapnoty && CFG.zapnoty.honeypot ? String(CFG.zapnoty.honeypot) : "";
