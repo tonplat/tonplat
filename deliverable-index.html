@@ -32,9 +32,9 @@
 
   <link rel="preconnect" href="https://api.zapnoty.com" crossorigin>
   <link rel="preload" as="image" href="./hero-cover.jpg?v=20261105" fetchpriority="high">
-  <link rel="stylesheet" href="./tokens.css">
-  <link rel="stylesheet" href="./styles.css">
-  <link rel="stylesheet" href="./legal.css">
+  <link rel="stylesheet" href="./tokens.css?v=20261120">
+  <link rel="stylesheet" href="./styles.css?v=20261120">
+  <link rel="stylesheet" href="./legal.css?v=20261120">
   <style>
     /* Фирменный прелоадер «клещ и пар»: показывается до загрузки стилей и скриптов */
     .tp-loader{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:radial-gradient(1200px 700px at 50% 38%,#fffdf8 0%,#FAF7F2 55%,#f4ede2 100%);overflow:hidden;transition:opacity .5s ease,visibility .5s ease;animation:tp-autoclose .45s ease 5s forwards;}
@@ -596,19 +596,33 @@
     <!-- ==================================================================
          1. HERO SECTION — Modern Airy Pastel Catering Website Hero
          ================================================================== -->
-    <section id="top" class="hero-full" aria-label="ТонПлат — кейтеринг в Самаре">
-      <img class="hero-full-img" src="./hero-cover.jpg?v=20261105" alt="" fetchpriority="high" decoding="async">
-      <div class="hero-full-overlay"></div>
-      <div class="hero-particles" aria-hidden="true"></div>
-      <div class="hero-full-center">
-        <div class="hero-wordmark-wrap">
-          <span class="hero-full-name" id="hero-name">ТОНПЛАТ</span>
+    <section id="top" class="hero-full hero-v3" aria-label="ТонПлат — кейтеринг в Самаре">
+      <div class="hv-media" aria-hidden="true"><img src="./hero-cover.jpg?v=20261105" alt="" fetchpriority="high" decoding="async"></div>
+      <div class="hv-veil" aria-hidden="true"></div>
+      <div class="hv-grain" aria-hidden="true"></div>
+      <div class="hv-inner">
+        <p class="hv-overline">кейтеринг-студия · Самара</p>
+        <h1 class="hv-title">
+          <span class="hv-line"><span>Готовим и сервируем</span></span>
+          <span class="hv-line"><span>как <em>искусство</em></span></span>
+        </h1>
+        <p class="hv-sub">Фуршеты, банкеты и кофе-брейки под ключ: 108 блюд собственной кухни, выездной шеф и сервировка, которую хочется фотографировать.</p>
+        <div class="hv-cta">
+          <button class="hv-btn" id="hero-open-builder" type="button" aria-haspopup="dialog" aria-controls="table-drawer">Собрать стол</button>
+          <a class="hv-ghost" href="#menu">Смотреть меню</a>
         </div>
-        <div class="mobile-hero-panel" aria-label="Главное предложение">
-          <h1 class="mobile-hero-title">Фуршеты и кейтеринг в Самаре</h1>
-          <p class="mobile-hero-subtitle">Готовые столы, закуски и банкетные наборы</p>
-          <button class="mobile-hero-cta" id="hero-open-builder" type="button" aria-haspopup="dialog" aria-controls="table-drawer">Собрать на стол</button>
-          <p class="mobile-hero-trust">Оплата после получения</p>
+        <div class="hv-strip" role="list">
+          <div role="listitem"><b>Фуршет</b><span>от 400 ₽ / чел</span></div>
+          <div role="listitem"><b>Кофе-брейк</b><span>от 550 ₽ / чел</span></div>
+          <div role="listitem"><b>Банкет</b><span>от 1 800 ₽ / чел</span></div>
+          <div role="listitem"><b>Пространство</b><span>1 400 ₽ / час</span></div>
+        </div>
+      </div>
+      <div class="hv-scroll" aria-hidden="true"><span></span>листайте</div>
+      <div class="hv-marquee" aria-hidden="true">
+        <div class="hv-track">
+          <span>фуршеты · банкеты · кофе-брейки · канапе · брускетты · тарталетки · рулетики · десерты ·&#160;</span>
+          <span>фуршеты · банкеты · кофе-брейки · канапе · брускетты · тарталетки · рулетики · десерты ·&#160;</span>
         </div>
       </div>
     </section>
@@ -1142,9 +1156,9 @@
     </p>
   </section>
 
-  <script src="./config.js"></script>
-  <script src="./menu-data.js"></script>
-  <script src="./privacy.js"></script>
-  <script src="./app.js"></script>
+  <script src="./config.js?v=20261120"></script>
+  <script src="./menu-data.js?v=20261120"></script>
+  <script src="./privacy.js?v=20261120"></script>
+  <script src="./app.js?v=20261120"></script>
 </body>
 </html>
